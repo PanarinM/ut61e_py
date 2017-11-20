@@ -1,6 +1,8 @@
 # UNI-T UT61E Python Library
 
 Python library for reading data from UNI-T UT61E DMM.
+https://www-user.tu-chemnitz.de/~heha/hs/UNI-T/UT61BCD.LOG
+https://wiki.univie.ac.at/display/FZNSF/UNI-T+UT61B
 
 ## Overview
 
