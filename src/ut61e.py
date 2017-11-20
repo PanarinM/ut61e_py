@@ -13,9 +13,9 @@ Created on Sep 22, 2017
 import serial
 
 # Settings constants
-BAUD_RATE = 19200
-BITS = serial.SEVENBITS
-PARITY = serial.PARITY_ODD
+BAUD_RATE = 2400
+BITS = serial.EIGHTBITS
+PARITY = serial.PARITY_NONE
 STOP_BITS = serial.STOPBITS_ONE
 DTR = True
 RTS = False
@@ -25,7 +25,7 @@ EOL = b'\x0D\x0A'
 RAW_DATA_LENGTH = 14
 READ_RETRIES = 3
 
-# UT61E protocol constants
+# UT61B protocol constants
 # Significant bits in digit bytes
 DIGIT_MASK = 0b00001111
 # Bytes containing digits
@@ -272,14 +272,12 @@ class UT61E(object):
         retries is defined by READ_RETRIES value.
         '''
         self._ser.reset_input_buffer()
-        
-        retries = 0
-        while retries < READ_RETRIES:
+
+        for x in xrange(READ_RETRIES):
             raw_data = self._ser.read_until(EOL, RAW_DATA_LENGTH)
             # If 14 bytes were read, the packet is valid and the loop ends.
             if len(raw_data) == RAW_DATA_LENGTH:
                 break
-            retries += 1
 
         res = []
         

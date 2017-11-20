@@ -16,7 +16,7 @@ import datetime
 from serial import SerialException
 
 SLEEP_TIME = 0.25
-PORT = "/dev/ttyUSB0"
+PORT = "COM3"
 
 if __name__ == '__main__':
     print "Starting UT61E monitor..."
