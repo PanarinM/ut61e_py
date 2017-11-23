@@ -26,233 +26,99 @@ EOL = b'\x0D\x0A'
 RAW_DATA_LENGTH = 14
 READ_RETRIES = 3
 
-# UT61B protocol constants
-# Significant bits in digit bytes
-DIGIT_MASK = 0b00001111
+# BYTE 0 sign
+PLUS = 0x2b
+NEG = 0x2d
+
 # Bytes containing digits
-DIGIT_BYTES = (1, 2, 3, 4, 5)
+DIGIT_BYTES = (1, 2, 3, 4)
 
-# Percent
-# Byte 7 bit 3
-PERCENT = 0b00001000
+# in addition, byte 1 can be "?" (0x3f) indicating value overflow
+QST = 0x3f
 
-# Minus
-# Byte 7 bit 2
-NEG = 0b00000100
+# BYTE 5 white space
+WHITE_SPACE = 0b00000100
 
-# Low battery
-# Byte 7 bit 1
-LOW_BAT = 0b00000010
+# BYTE 6 Decimal point
+POS_1 = 0x31  # 0b10001100
+POS_2 = 0x32  # 0b01001100
+POS_3 = 0x33  # 0b00011100
+POS_4 = 0x34  # 0b00001100
 
-# OL
-# Byte 7 bit 0
-OL = 0b00000001
-
-# Relative mode
-# Byte 8 bit 1
-DELTA = 0b00000010
-
-# UL
-# Byte 9 bit 3
-UL = 0b00001000
-
-# MAX
-# Byte 9 bit 2
-MAX = 0b00000100
-
-# MIN
-# Byte 9 bit 1
-MIN = 0b00000010
-
-# DC
-# Byte 10 bit 3
-DC = 0b00001000
-
-# AC
-# Byte 10 bit 2
-AC = 0b00000100
-
-# AUTO
-# Byte 10 bit 1
-AUTO = 0b00000010
-
-# Hz
-# Byte 10 bit 0
-HZ = 0b00000001
-
-# Hold
-# Byte 11 bit 1
-HOLD = 0b00000010
+# BYTE 7  Settings/ Pressend Buttons/ Binary flags, can be combined
+BAR_GRPH = 0x1    # 0b10000000
+HOLD = 0x2        # 0b01000000
+RELATIVE = 0x4    # 0b00100000
+AC = 0x8          # 0b00010000
+DC = 0x10         # 0b00001000
+AUTORANGE = 0x20  # 0b00000100
 
 
-# Measurement ranges
+# TODO: ...
 """
-Byte 6:  B         3         6         2         D         F         0        2
-Byte 0:  V, mV     Ohm       F         Hz        uA        mA        A        %
-    0    2.2000    220.00    22.000n   220.00    220.00u   22.000m   10.000   100.0
-    1    22.000    2.2000k   220.00n   2200.0    2200.0u   220.00m   -        100.0
-    2    220.00    22.000k   2.2000u   -         -         -         -        -
-    3    1000.0    220.00k   22.000u   22.000k   -         -         -        100.0
-    4    220.00m   2.200M    220.00u   220.00k   -         -         -        100.0
-    5    -         22.000M   2.2000m   2.2000M   -         -         -        100.0
-    6    -         220.00M   22.000m   22.000M   -         -         -        100.0
-    7    -         -         220.00m   220.00M   -         -         -        100.0
+┌────────────────────────────────────────────┐
+│ Byte 8: MIN/MAX                            │
+├────────────┬───┬───┬───┬───┬───┬───┬───┬───┤
+│            │ 0 │ 1 │ 2 │ 3 │ 4 │ 5 │ 6 │ 7 │
+├────────────┼───┼───┼───┼───┼───┼───┼───┼───┤
+│ nano       │   │   │   │   │   │   │ x │   │ 0x2
+│ low bat    │   │   │   │   │   │ x │   │   │ 0x4
+│autopoweroff│   │   │   │   │ x │   │   │   │ 0x8
+│ min        │   │   │   │ x │   │   │   │   │ 0x10
+│ max        │   │   │ x │   │   │   │   │   │ 0x20
+└────────────┴───┴───┴───┴───┴───┴───┴───┴───┘
+
+┌────────────────────────────────────────────┐
+│ Byte 9: Unit prefix                        │
+├────────────┬───┬───┬───┬───┬───┬───┬───┬───┤
+│            │ 0 │ 1 │ 2 │ 3 │ 4 │ 5 │ 6 │ 7 │
+├────────────┼───┼───┼───┼───┼───┼───┼───┼───┤
+│ percent    │   │   │   │   │   │   │ x │   │ 0x2
+│ diode      │   │   │   │   │   │ x │   │   │ 0x4
+│ beep       │   │   │   │   │ x │   │   │   │ 0x8
+│ mega       │   │   │   │ x │   │   │   │   │ 0x10
+│ kilo       │   │   │ x │   │   │   │   │   │ 0x20
+│ milli      │   │ x │   │   │   │   │   │   │ 0x40
+│ micro      │ x │   │   │   │   │   │   │   │ 0x80
+└────────────┴───┴───┴───┴───┴───┴───┴───┴───┘
+
+┌────────────────────────────────────────────┐
+│ Byte 10: Unit                              │
+├────────────┬───┬───┬───┬───┬───┬───┬───┬───┤
+│            │ 0 │ 1 │ 2 │ 3 │ 4 │ 5 │ 6 │ 7 │
+├────────────┼───┼───┼───┼───┼───┼───┼───┼───┤
+│ Fahrenheit │   │   │   │   │   │   │   │ x │ 0x1
+│ Degree     │   │   │   │   │   │   │ x │   │ 0x2
+│ Farad      │   │   │   │   │   │ x │   │   │ 0x4
+│ Hertz      │   │   │   │   │ x │   │   │   │ 0x8
+│ hFE        │   │   │   │ x │   │   │   │   │ 0x10
+│ Ohm        │   │   │ x │   │   │   │   │   │ 0x20
+│ Ampere     │   │ x │   │   │   │   │   │   │ 0x40
+│ Volt       │ x │   │   │   │   │   │   │   │ 0x80
+└────────────┴───┴───┴───┴───┴───┴───┴───┴───┘
+
+┌────────────────────────────────────────────┐
+│ Byte 11: bargraph value                    │
+│   bit 0   : positive (0) or negative (1)   │
+│   bit 1-6 : value as 7bit unsigned int     │
+└────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────┐
+│ Byte 12: Marks end of frame                │
+├────────────┬───┬───┬───┬───┬───┬───┬───┬───┤
+│            │ 0 │ 1 │ 2 │ 3 │ 4 │ 5 │ 6 │ 7 │
+├────────────┼───┼───┼───┼───┼───┼───┼───┼───┤
+│ CR         │   │   │   │   │ x │ x │   │ x │ 0x0d
+└────────────┴───┴───┴───┴───┴───┴───┴───┴───┘
+
+┌────────────────────────────────────────────┐
+│ Byte 13: Marks end of frame                │
+├────────────┬───┬───┬───┬───┬───┬───┬───┬───┤
+│            │ 0 │ 1 │ 2 │ 3 │ 4 │ 5 │ 6 │ 7 │
+├────────────┼───┼───┼───┼───┼───┼───┼───┼───┤
+│ LF         │   │   │   │   │ x │   │ x │   │ 0x0a
+└────────────┴───┴───┴───┴───┴───┴───┴───┴───┘
 """
-
-RANGE_V = (
-    ('2.2000', 'V', 0.0001),
-    ('22.000', 'V', 0.001),
-    ('220.00', 'V', 0.01),
-    ('1000.0', 'V', 0.1),
-    ('220.00', 'mV', 0.01),
-    )
-
-RANGE_R = (
-    ('220.00', 'Ohm', 0.01),
-    ('2.2000', 'kOhm', 0.0001),
-    ('22.000', 'kOhm', 0.001),
-    ('220.00', 'kOhm', 0.01),
-    ('2.2000', 'MOhm', 0.0001),
-    ('22.000', 'MOhm', 0.001),
-    ('220.00', 'MOhm', 0.01),
-    )
-
-RANGE_C = (
-    ('22.000', 'nF', 0.001),
-    ('220.00', 'nF', 0.01),
-    ('2.2000', 'uF', 0.0001),
-    ('22.000', 'uF', 0.001),
-    ('220.00', 'uF', 0.01),
-    ('2.2000', 'mF', 0.0001),
-    ('22.000', 'mF', 0.001),
-    ('220.00', 'mF', 0.01),
-    )
-
-RANGE_F = (
-    ('220.00', 'Hz', 0.01),
-    ('2200.0', 'Hz', 0.1),
-    None,
-    ('22.000', 'kHz', 0.001),
-    ('220.00', 'kHz', 0.01),
-    ('2.2000', 'MHz', 0.0001),
-    ('22.000', 'MHz', 0.001),
-    ('220.00', 'MHz', 0.01),
-    )
-
-RANGE_I_UA = (
-    ('220.00', 'uA', 0.01),
-    ('2200.0', 'uA', 0.1),
-    )
-
-RANGE_I_MA = (
-    ('22.000', 'mA', 0.001),
-    ('220.00', 'mA', 0.01),
-    )
-
-RANGE_I_A = (
-    ('10.000', 'A', 0.001),
-    )
-
-RANGE_PERCENT = (
-    ('100.0', '%', 0.01),
-    ('100.0', '%', 0.01),
-    None,
-    ('100.0', '%', 0.01),
-    ('100.0', '%', 0.01),
-    ('100.0', '%', 0.01),
-    ('100.0', '%', 0.01),
-    )
-
-# Measurement type
-"""
-0x00   A
-0x01   Diode
-0x02   Hz, %
-0x03   Ohm
-0x04   Temperature
-0x05   Buzzer
-0x06   F
-0x07   A
-0x0B   V, mV
-0x0D   uA
-0x0E   ADP
-0x0F   mA
-"""
-
-MEAS_TYPE = (
-    ('A', RANGE_I_A),
-    ('Diode', RANGE_V),
-    ('Hz/%', RANGE_F),
-    ('Ohm', RANGE_R),
-    ('deg', None),
-    ('Buzzer', RANGE_R),
-    ('Cap', RANGE_C),
-    None,
-    None,
-    ('A', RANGE_I_A),
-    None,
-    ('V/mV', RANGE_V),
-    None,
-    ('uA', RANGE_I_UA),
-    ('ADP', None),
-    ('mA', RANGE_I_MA),
-    )
-
-# Normalization constants
-# Each value contains multiplier and target value
-NORM_RULES = {
-    # Voltage
-    'V':    (1, 'V'),
-    'mV':   (1E-03, 'V'),
-    # Current
-    'A':    (1, 'A'),
-    'mA':   (1E-03, 'A'),
-    'uA':   (1E-06, 'A'),
-    # Resistance
-    'Ohm':  (1, 'Ohm'),
-    'kOhm': (1E03, 'Ohm'),
-    'MOhm': (1E06, 'Ohm'),
-    # Capacitance
-    'nF':   (1E-9, 'F'),
-    'uF':   (1E-6, 'F'),
-    'mF':   (1E-3, 'F'),
-    # Frequency
-    'Hz':   (1, 'Hz'),
-    'kHz':  (1E03, 'Hz'),
-    'MHz':  (1E06, 'Hz'),
-    # Percent
-    '%':    (1, '%'),
-    }
-
-# Output format
-MEAS_RES = {
-    # Mode and range
-    'mode': None,
-    'range': None,
-    
-    # Displayed value
-    'val': None,
-    'units': None,
-    'norm_val': None,
-    'norm_units': None,
-    
-    # Flags
-    'percent': False,
-    'minus': False,
-    'low_bat': False,
-    'ovl': False,
-    'delta': False,
-    'ul': False,
-    'max': False,
-    'min': False,
-    'dc': False,
-    'ac': False,
-    'auto': False,
-    'hz': False,
-    'hold': False,
-    
-    'data_valid': False
-    }
 
 
 class UT61E(object):
